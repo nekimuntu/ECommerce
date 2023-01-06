@@ -3,6 +3,8 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Core.Entities;
 using Core.Interfaces;
+using Core.Specification;
+using API.Dtos;
 
 namespace API.Controllers
 {
@@ -10,37 +12,51 @@ namespace API.Controllers
     [Route("api/[controller]")]
     public class ProductsController : ControllerBase
     {
-        //On declare le private readonly StoreContext poour avoir acces a la DB
-        private readonly IProductRepository _repo;
-        //On cree le construteur de Products pour quil initialise la connexion a la 
-        //DB lorsqu il est cree. On utilise le context precedemment Initialis
-        /// ... IProductRepository context est maintenat utilise a la place du contexte... 2eme niveau d abstraction
-        public ProductsController(IProductRepository repo)
-        {
-            _repo = repo;
+        private  IGenericRepository<Product> _productsRepo;
+        private readonly IGenericRepository<ProductBrand> _productBrandRepo;
+        private readonly IGenericRepository<ProductType> _productTypeRepo;
+        private object productsRepo;
 
+        public ProductsController(IGenericRepository<Product> productsRepo,
+                    IGenericRepository<ProductBrand> productBrandRepo,
+                    IGenericRepository<ProductType> productTypeRepo)
+        {
+            _productsRepo = productsRepo;
+            _productBrandRepo =productBrandRepo;
+            _productTypeRepo=productTypeRepo;
         }
-        //Summary: On utilise async pour eviter que la methode attende la DB 
-        // ToListAsync est une fonction a utiliser avec using Microsoft.EntityFrameworkCore;
         [HttpGet]
         public async Task<ActionResult<List<Product>>> GetProducts()
         {
+            var spec = new ProductsWithTypesAndBrandSpecification();
 
-            var products = await _repo.GetProductsAsync() ;
+            var products = await _productsRepo.ListAsync(spec);
             
             return Ok(products);
         }
 
         [HttpGet("{id}")]
-        public async Task<ActionResult<Product>> GetOneProduct(int id)
+        public async Task<ActionResult<ProductToReturnDto>> GetOneProduct(int id)
         {
-            return await _repo.GetProductByIdAsync(id);
+            var spec = new ProductsWithTypesAndBrandSpecification(id);
+            var product = await _productsRepo.GetEntityWithSpec(spec);
+
+            return new ProductToReturnDto
+            {
+                Id = product.Id,
+                Name = product.Name,
+                Description = product.Description,
+                Price = product.Price,
+                ImageUrl = product.ImageUrl,
+                ProductBrand = product.ProductBrand.Name,
+                ProductType = product.ProductType.Name
+            };
         }
 
         [HttpGet("brands")]
         public async Task<ActionResult<List<ProductBrand>>> GetBrands()
         {
-            var brands = await _repo.GetProductsBrandAsync();
+            var brands = await _productBrandRepo.ListAllAsync();
             return Ok(brands);
         }
 
@@ -48,7 +64,7 @@ namespace API.Controllers
         public async Task<ActionResult<List<ProductType>>> GetTypes()
         {
 
-            var types = await _repo.GetProductsTypeAsync();
+            var types = await _productTypeRepo.ListAllAsync();
             return Ok(types);
         }
     }
