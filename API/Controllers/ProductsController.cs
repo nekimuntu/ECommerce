@@ -26,19 +26,28 @@ namespace API.Controllers
             _productTypeRepo=productTypeRepo;
         }
         [HttpGet]
-        public async Task<ActionResult<List<Product>>> GetProducts()
+        public async Task<ActionResult<List<ProductToReturnDto>>> GetProducts()
         {
             var spec = new ProductsWithTypesAndBrandSpecification();
 
             var products = await _productsRepo.ListAsync(spec);
             
-            return Ok(products);
+            return products.Select(product => new ProductToReturnDto
+            {
+                Id = product.Id,
+                Name = product.Name,
+                Description = product.Description,
+                Price = product.Price,
+                ImageUrl = product.ImageUrl,
+                ProductBrand = product.ProductBrand.Name,
+                ProductType = product.ProductType.Name
+            }).ToList();
         }
 
-        [HttpGet("{id}")]
-        public async Task<ActionResult<ProductToReturnDto>> GetOneProduct(int id)
+        [HttpGet("{Id}")]
+        public async Task<ActionResult<ProductToReturnDto>> GetOneProduct(int Id)
         {
-            var spec = new ProductsWithTypesAndBrandSpecification(id);
+            var spec = new ProductsWithTypesAndBrandSpecification(Id);
             var product = await _productsRepo.GetEntityWithSpec(spec);
 
             return new ProductToReturnDto
@@ -52,7 +61,7 @@ namespace API.Controllers
                 ProductType = product.ProductType.Name
             };
         }
-
+        
         [HttpGet("brands")]
         public async Task<ActionResult<List<ProductBrand>>> GetBrands()
         {
